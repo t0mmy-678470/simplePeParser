@@ -3,7 +3,7 @@
 2. execute command "gcc parsePE.c -o parsePE.exe"
 
 ## Usage
-- parsePE.exe [executible]
+- parsePE.exe [PE 64bit executible]
 
 ## Sample Output
 ```
