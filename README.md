@@ -7,6 +7,7 @@
 
 ## Sample Output
 ```
+$ ./parsePE.exe test.exe
 ---------- In NT Header ----------
 Signature:                 PE
 
