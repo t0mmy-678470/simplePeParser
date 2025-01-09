@@ -115,27 +115,37 @@ int parseImp(IMAGE_NT_HEADERS64* ntHdr){
     DWORD impAddr = dirExe[1].VirtualAddress;
     DWORD impLen = (int)dirExe[1].Size / sizeof(IMAGE_IMPORT_DESCRIPTOR);
     
+    printf("\n---------- In Tracing Imported Module ----------\n");
     for(int i=0;i<secNum;i++){
         DWORD secVirAddr = secHdrExe[i].VirtualAddress;
         DWORD secPhyAddr = secHdrExe[i].PointerToRawData;
         DWORD secVirSize = secHdrExe[i].Misc.VirtualSize;
         if(impAddr >= secVirAddr && impAddr < secVirAddr+secVirSize){
-            printf("In %s section\n", secHdrExe[i].Name);
-            printf("virtual address: %lx\n", secVirAddr);
-            printf("physical address: %lx\n", secPhyAddr);
-            printf("virtual size: %lx\n", secVirSize);
             DWORD offset = secVirAddr-secPhyAddr;
             IMAGE_IMPORT_DESCRIPTOR* importTable = (IMAGE_IMPORT_DESCRIPTOR*)&bufExe[impAddr - offset];
-            printf("Dll Name: %lx\n", importTable[0].Name);
-            printf("Original First Thunk: %lx\n", importTable[0].OriginalFirstThunk);
-            printf("Dll Name: %lx\n", importTable[1].Name);
-            printf("Original First Thunk: %lx\n", importTable[1].OriginalFirstThunk);
-            printf("Dll Name: %lx\n", importTable[2].Name);
-            printf("Original First Thunk: %lx\n", importTable[2].OriginalFirstThunk);
+            for(int i=0;i<impLen-1;i++){ // impLen
+                // printf("impLen: %ld\n", impLen);
+                printf("\n---------- In Module %s ----------\n", &bufExe[importTable[i].Name - offset]);
+                DWORD thunkIdx = importTable[i].OriginalFirstThunk;
+                while(1){
+                    unsigned long long nameIdx = 0;
+                    for(int k=0;k<8;k++){ // 8 bytes
+                        unsigned long long byt = (unsigned long long) bufExe[thunkIdx - offset + k];
+                        // for(int l=0;l<k;l++) byt *= 256; // add offset
+                        byt &= 0xff;
+                        byt = byt << k*8;
+                        nameIdx += byt;
+                    }
+                    // printf("u1: %llx\n", nameIdx);
+                    if(nameIdx == 0) break;
+                    IMAGE_IMPORT_BY_NAME* impName = (IMAGE_IMPORT_BY_NAME*)&bufExe[nameIdx-offset];
+                    printf("Imported function:         %s\n", impName->Name);
+                    thunkIdx += 8;
+                }
+            }
             return 0;
         }
     }
-    // IMAGE_IMPORT_DESCRIPTOR importTable = 
 
     return 1;
 }
@@ -177,6 +187,6 @@ int main(int argc, char** argv){
     if(parseDataDir(ntHdr))
         printf("[ERROR] Parse Data Directory error!\n");
 
-    // if(parseImp(ntHdr))
-    //     printf("[ERROR] Parse Import Table error!\n");
+    if(parseImp(ntHdr))
+        printf("[ERROR] Parse Import Table error!\n");
 }
