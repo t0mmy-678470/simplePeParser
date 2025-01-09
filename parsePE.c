@@ -70,24 +70,22 @@ int parseOptHdr(IMAGE_NT_HEADERS64* ntHdr){
 }
 
 int parseSecHdr(IMAGE_NT_HEADERS64* ntHdr){
-    // IMAGE_SECTION_HEADER* secHdrExe
     int secNum = ntHdr->FileHeader.NumberOfSections;
     int dosLen = ((IMAGE_DOS_HEADER*)bufExe)->e_lfanew;
-    // IMAGE_SECTION_HEADER* secHdrExe = (IMAGE_SECTION_HEADER *)((size_t)ntHdr + sizeof(IMAGE_NT_HEADERS64));
-    // printf("section header offset = %llu\n", sizeof(IMAGE_DOS_HEADER) + sizeof(IMAGE_NT_HEADERS64));
-    // printf("size of dos header = %llu", sizeof(IMAGE_DOS_HEADER));
-    // return 0;
     IMAGE_SECTION_HEADER* secHdrExe = (IMAGE_SECTION_HEADER*) &bufExe[dosLen + sizeof(IMAGE_NT_HEADERS64)];
     printf("\n---------- In Section Header ----------\n");
 
     for(int i=0;i<secNum;i++){
         printf("\n---------- In %s Section ----------\n", secHdrExe[i].Name);
-        printf("Characteristics:           0x%lx\n", secHdrExe[i].Characteristics);
+        printf("Virtual Address:           0x%lx\n", secHdrExe[i].VirtualAddress);
         printf("Virtual Size:              0x%lx\n", secHdrExe[i].Misc.VirtualSize);
+        printf("Pointer to Raw Data:       0x%lx\n", secHdrExe[i].PointerToRawData);
+        printf("Size of Raw Data:          0x%lx\n", secHdrExe[i].SizeOfRawData);
+        printf("Characteristics:           0x%lx\n", secHdrExe[i].Characteristics);
         printf("Number of Line Numbers:    0x%hx\n", secHdrExe[i].NumberOfLinenumbers);
         printf("Number of Relocations:     0x%hx\n", secHdrExe[i].NumberOfRelocations);
         printf("Pointer to Line Numbers:   0x%lx\n", secHdrExe[i].PointerToLinenumbers);
-        printf("Characteristics:           0x%lx\n", secHdrExe[i].PointerToRawData);
+        printf("Pointer to Relocation:     0x%lx\n", secHdrExe[i].PointerToRelocations);
     }
 
     return 0;
@@ -105,6 +103,41 @@ int parseDataDir(IMAGE_NT_HEADERS64* ntHdr){
     }
 
     return 0;
+}
+
+int parseImp(IMAGE_NT_HEADERS64* ntHdr){
+    int secNum = ntHdr->FileHeader.NumberOfSections;
+    int dosLen = ((IMAGE_DOS_HEADER*)bufExe)->e_lfanew;
+    IMAGE_SECTION_HEADER* secHdrExe = (IMAGE_SECTION_HEADER*) &bufExe[dosLen + sizeof(IMAGE_NT_HEADERS64)];
+
+    IMAGE_OPTIONAL_HEADER64* optHdrExe = &ntHdr->OptionalHeader;
+    IMAGE_DATA_DIRECTORY* dirExe = optHdrExe->DataDirectory;
+    DWORD impAddr = dirExe[1].VirtualAddress;
+    DWORD impLen = (int)dirExe[1].Size / sizeof(IMAGE_IMPORT_DESCRIPTOR);
+    
+    for(int i=0;i<secNum;i++){
+        DWORD secVirAddr = secHdrExe[i].VirtualAddress;
+        DWORD secPhyAddr = secHdrExe[i].PointerToRawData;
+        DWORD secVirSize = secHdrExe[i].Misc.VirtualSize;
+        if(impAddr >= secVirAddr && impAddr < secVirAddr+secVirSize){
+            printf("In %s section\n", secHdrExe[i].Name);
+            printf("virtual address: %lx\n", secVirAddr);
+            printf("physical address: %lx\n", secPhyAddr);
+            printf("virtual size: %lx\n", secVirSize);
+            DWORD offset = secVirAddr-secPhyAddr;
+            IMAGE_IMPORT_DESCRIPTOR* importTable = (IMAGE_IMPORT_DESCRIPTOR*)&bufExe[impAddr - offset];
+            printf("Dll Name: %lx\n", importTable[0].Name);
+            printf("Original First Thunk: %lx\n", importTable[0].OriginalFirstThunk);
+            printf("Dll Name: %lx\n", importTable[1].Name);
+            printf("Original First Thunk: %lx\n", importTable[1].OriginalFirstThunk);
+            printf("Dll Name: %lx\n", importTable[2].Name);
+            printf("Original First Thunk: %lx\n", importTable[2].OriginalFirstThunk);
+            return 0;
+        }
+    }
+    // IMAGE_IMPORT_DESCRIPTOR importTable = 
+
+    return 1;
 }
 
 int main(int argc, char** argv){
@@ -143,4 +176,7 @@ int main(int argc, char** argv){
     
     if(parseDataDir(ntHdr))
         printf("[ERROR] Parse Data Directory error!\n");
+
+    // if(parseImp(ntHdr))
+    //     printf("[ERROR] Parse Import Table error!\n");
 }
